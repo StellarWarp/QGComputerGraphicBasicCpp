@@ -112,8 +112,6 @@ public:
 		}
 		bool operator==(const iterator& other) const { return ptr == other.ptr; }
 		bool operator!=(const iterator& other) const { return ptr != other.ptr; }
-		reference operator[](difference_type  i) const {}
-		auto operator<=>(const iterator&) const = default;
 	};
 
 	iterator begin() { return { m_front }; }
