@@ -6,16 +6,32 @@
 //不想折腾的删除这个定义
 #define LL_ITERATOR_FEATURE ///可选 [迭代器]
 
+#ifndef LL_ITERATOR_FEATURE
+template<class T>
+struct LinkedListNode
+{
+	T data{};
+	LinkedListNode* next{};
+	LinkedListNode* prev{};
+};
+#endif
+
 template<class T>
 class LinkedList
 {
 private:
+#ifdef LL_ITERATOR_FEATURE
 	struct Node
 	{
 		T data{};
 		Node* next{};
 		Node* prev{};
 	};
+#else
+	using Node = LinkedListNode<T>;
+#endif // LL_ITERATOR_FEATURE
+
+
 	Node* m_front{};//始
 	Node* m_back{};//末
 	uint64_t m_count;//长度
@@ -75,6 +91,27 @@ private:
 		}
 		return &newnode->data;
 	}
+	Node* _Erase(const Node* node) {
+		if (!node) return nullptr;//空操作
+		if (node == m_front)
+		{
+			m_front = node->next;
+		}
+		if (node == m_back)
+		{
+			m_back = node->prev;
+		}
+		if (node->prev)
+			node->prev->next = node->next;
+		if (node->next)
+			node->next->prev = node->prev;
+		m_count--;
+
+		if (!m_count) { m_front = m_back = nullptr; }
+		auto temp = node->next;
+		delete node;
+		return temp;
+	}
 public:
 #ifdef LL_ITERATOR_FEATURE
 	//迭代器是对指针操作的抽象，外部使用时完全不需要关心指针
@@ -96,8 +133,8 @@ public:
 		iterator operator++(int) { iterator tmp = *this; ptr = ptr->next; return tmp; }
 		iterator& operator--() { ptr = ptr->prev; return *this; }
 		iterator operator--(int) { iterator tmp = *this; ptr = ptr->prev; return tmp; }
-		iterator operator+(difference_type i) 
-		{ 
+		iterator operator+(difference_type i)
+		{
 			Node* ptr_ = ptr;
 			for (auto j = 0; j < i; j++)
 				ptr_ = ptr_->next;
@@ -114,10 +151,10 @@ public:
 		bool operator!=(const iterator& other) const { return ptr != other.ptr; }
 	};
 
-	iterator begin() { return { m_front }; }
-	iterator end() { return { nullptr }; }
-	iterator rbegin() { return { m_back }; }
-	iterator rend() { return { nullptr }; }
+	iterator begin() { return m_front; }
+	iterator end() { return nullptr; }
+	iterator rbegin() { return m_back; }
+	iterator rend() { return nullptr; }
 #endif
 
 public:
@@ -146,44 +183,32 @@ public:
 		_InsertAfter(val, iter.ptr);
 	}
 	iterator Erase(const iterator& iter) {
-		Node* node = iter.ptr;
-		if (!node) return iter;//空操作
-		if (node == m_front)
-		{
-			m_front = node->next;
-		}
-		if (node == m_back)
-		{
-			m_back = node->prev;
-		}
-		if (node->prev)
-			node->prev->next = node->next;
-		if (node->next)
-			node->next->prev = node->prev;
-		m_count--;
-
-		if (!m_count) { m_front = m_back = nullptr; }
-		auto temp = node->next;
-		delete node;
-		return { temp };
+		return _Erase(iter.ptr);
 	}
 #else
 	//default insert after node
-	void Insert(const T& val, T* node, bool insert_prev = false);
-	T* Erase(T* node);
+	void Insert(const T& val, Node* node, bool insert_prev = false) {
+		if (insert_prev) _InsertBefore(val, node);
+		_InsertAfter(val, node);
+	}
+	Node* Erase(const Node* node) {
+		return _Erase(node);
+	}
+	Node* First() { return m_front; }
+	Node* Last() { return m_back; }
 #endif
 
 	T& Front() { return m_front->data; }
 	T& Back() { return m_back->data; }
 	void PushFront(const T& val) { _InsertBefore(val, m_front); }
 	void PushBack(const T& val) { _InsertAfter(val, m_back); }
-	void PopFront() { Erase( m_front ); }
-	void PopBack() { Erase(m_back); }
+	void PopFront() { _Erase(m_front); }
+	void PopBack() { _Erase(m_back); }
 
 	size_t Count() { return m_count; }
 	bool Empty() { return m_count == 0; }
 
-	void Clear(){
+	void Clear() {
 		auto ptr = m_front;
 		while (ptr)
 		{
@@ -191,6 +216,7 @@ public:
 			ptr = ptr->next;
 			delete del;
 		}
+		m_front = m_back = nullptr;
 	}
 
 	//... other methods
